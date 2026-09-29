@@ -1,0 +1,196 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum SeatType {
+  REGULAR
+  PREMIUM
+}
+
+enum ShowSeatStatus {
+  AVAILABLE
+  LOCKED
+  BOOKED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+model User {
+  id           String      @id @default(uuid())
+  name         String
+  email        String      @unique
+  passwordHash String      @map("password_hash")
+  role         Role        @default(USER)
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  bookings     Booking[]
+  lockedSeats  ShowSeat[]  @relation("UserLockedSeats")
+
+  @@map("users")
+}
+
+model Movie {
+  id          String    @id @default(uuid())
+  title       String
+  description String    @db.Text
+  posterUrl   String    @map("poster_url")
+  backdropUrl String    @map("backdrop_url")
+  durationMin Int       @map("duration_min")
+  rating      Float     @default(8.5)
+  genre       String
+  releaseDate DateTime  @map("release_date")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  shows       Show[]
+
+  @@map("movies")
+}
+
+model Theatre {
+  id        String   @id @default(uuid())
+  name      String
+  location  String
+  city      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  screens   Screen[]
+
+  @@map("theatres")
+}
+
+model Screen {
+  id           String   @id @default(uuid())
+  theatreId    String   @map("theatre_id")
+  screenNumber Int      @map("screen_number")
+  totalSeats   Int      @map("total_seats")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  theatre      Theatre  @relation(fields: [theatreId], references: [id], onDelete: Cascade)
+  seats        Seat[]
+  shows        Show[]
+
+  @@unique([theatreId, screenNumber])
+  @@map("screens")
+}
+
+model Seat {
+  id         String     @id @default(uuid())
+  screenId   String     @map("screen_id")
+  seatRow    String     @map("seat_row")
+  seatNumber Int        @map("seat_number")
+  seatType   SeatType   @default(REGULAR) @map("seat_type")
+  basePrice  Float      @map("base_price")
+
+  screen       Screen        @relation(fields: [screenId], references: [id], onDelete: Cascade)
+  showSeats    ShowSeat[]
+  bookingSeats BookingSeat[]
+
+  @@unique([screenId, seatRow, seatNumber])
+  @@map("seats")
+}
+
+model Show {
+  id              String      @id @default(uuid())
+  movieId         String      @map("movie_id")
+  screenId        String      @map("screen_id")
+  startTime       DateTime    @map("start_time")
+  endTime         DateTime    @map("end_time")
+  priceMultiplier Float       @default(1.0) @map("price_multiplier")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  movie           Movie       @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  screen          Screen      @relation(fields: [screenId], references: [id], onDelete: Cascade)
+  showSeats       ShowSeat[]
+  bookings        Booking[]
+
+  @@map("shows")
+}
+
+model ShowSeat {
+  id             String         @id @default(uuid())
+  showId         String         @map("show_id")
+  seatId         String         @map("seat_id")
+  status         ShowSeatStatus @default(AVAILABLE)
+  lockedUntil    DateTime?      @map("locked_until")
+  lockedByUserId String?        @map("locked_by_user_id")
+  version        Int            @default(0)
+
+  show           Show           @relation(fields: [showId], references: [id], onDelete: Cascade)
+  seat           Seat           @relation(fields: [seatId], references: [id], onDelete: Cascade)
+  lockedByUser   User?          @relation("UserLockedSeats", fields: [lockedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([showId, seatId])
+  @@index([showId, status])
+  @@map("show_seats")
+}
+
+model Booking {
+  id               String        @id @default(uuid())
+  userId           String        @map("user_id")
+  showId           String        @map("show_id")
+  totalAmount      Float         @map("total_amount")
+  status           BookingStatus @default(PENDING)
+  bookingReference String        @unique @map("booking_reference")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  show             Show          @relation(fields: [showId], references: [id], onDelete: Cascade)
+  bookingSeats     BookingSeat[]
+  payment          Payment?
+
+  @@index([userId, createdAt])
+  @@map("bookings")
+}
+
+model BookingSeat {
+  id        String   @id @default(uuid())
+  bookingId String   @map("booking_id")
+  seatId    String   @map("seat_id")
+  price     Float
+
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  seat      Seat     @relation(fields: [seatId], references: [id], onDelete: Restrict)
+
+  @@unique([bookingId, seatId])
+  @@map("booking_seats")
+}
+
+model Payment {
+  id              String        @id @default(uuid())
+  bookingId       String        @unique @map("booking_id")
+  amount          Float
+  status          PaymentStatus @default(SUCCESS)
+  paymentIntentId String?       @map("payment_intent_id")
+  transactionRef  String        @unique @map("transaction_ref")
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  booking         Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}

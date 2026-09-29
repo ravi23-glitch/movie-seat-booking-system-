@@ -1,0 +1,54 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: movietickets-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: movietickets
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d movietickets"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - movietickets-network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: movietickets-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/movietickets?schema=public"
+      JWT_SECRET: "cinema-super-secret-jwt-key-2026-production-grade"
+      JWT_EXPIRES_IN: "7d"
+      SEAT_LOCK_DURATION_MINUTES: 10
+      CLEANUP_INTERVAL_SECONDS: 60
+      MAX_SEATS_PER_BOOKING: 6
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - movietickets-network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  movietickets-network:
+    driver: bridge
