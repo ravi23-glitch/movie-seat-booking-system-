@@ -7,7 +7,7 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38B2AC?style=flat&logo=tailwind-css)](https://tailwindcss.com/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat&logo=docker)](https://www.docker.com/)
 
-> 🚀 **Live Demo:** [https://YOUR-LINK-HERE](https://YOUR-LINK-HERE)  
+> 🚀 **Live Demo:** [https://YOUR-LINK-HERE]https://movie-seat-booking-system-1.onrender.com)  
 > 📱 *Tested & fully responsive across Mobile, Tablet, and Desktop*
 >
 > 📄 **Included Architecture Guides:**  
